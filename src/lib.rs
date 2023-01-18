@@ -1,5 +1,5 @@
 use image::{GenericImageView, Pixel};
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyValueError, prelude::*};
 
 #[pyclass]
 struct ImageHash {
@@ -25,7 +25,11 @@ impl ImageHash {
         Ok(self.hash_size)
     }
 
-    pub fn distance(&self, other: &ImageHash) -> u32 {
+    pub fn distance(&self, other: &ImageHash) -> PyResult<u32> {
+        if self.hash_size != other.hash_size {
+            return Err(PyValueError::new_err("Unmatch size"));
+        }
+
         let mut count = 0;
         let mut i: usize = 0;
         while i < self.hash_size.pow(2) {
@@ -34,14 +38,17 @@ impl ImageHash {
             };
             i += 1;
         }
-        return count;
+        return Ok(count);
     }
 }
 
 // Hashes an image
 #[pyfunction]
 fn hash_image(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
-    let img = image::open(fpath).expect("Unable to open file");
+    let img = match image::open(fpath) {
+        Ok(im) => im,
+        Err(_e) => return Err(PyValueError::new_err("Cannot open image.")),
+    };
     let resized = img.resize_exact(hash_size, hash_size, image::imageops::FilterType::Nearest);
 
     let mut pixels = vec![vec![0; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
