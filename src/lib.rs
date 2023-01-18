@@ -46,18 +46,12 @@ fn hash_image(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
 
     let mut pixels = vec![vec![0; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
 
-    let mut y: u32 = 0;
     let mut sum: u32 = 0;
-    while y < hash_size {
-        let mut x: u32 = 0;
-        while x < hash_size {
-            let px = resized.get_pixel(x, y).to_luma();
-            pixels[y as usize][x as usize] = px.0[0];
-
-            sum += u32::from(px.0[0]);
-            x += 1;
-        }
-        y += 1;
+    for pixel in resized.pixels() {
+        let (x, y, rgb) = pixel;
+        let px = rgb.to_luma();
+        pixels[y as usize][x as usize] = px.0[0];
+        sum += u32::from(px.0[0]);
     }
 
     let avg = sum / (u32::pow(hash_size, 2));
