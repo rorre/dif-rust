@@ -54,7 +54,6 @@ def find_duplicates(
     increment_func: Optional[Callable] = None,
 ) -> FileDuplicates:
     """Find duplicates from list of images."""
-    print(hash_size, threshold)
     dups: FileDuplicates = defaultdict(list)
 
     img_len = len(image_paths)
