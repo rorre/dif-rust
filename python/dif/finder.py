@@ -33,8 +33,8 @@ def get_hashes(
     image_paths: List[Path],
     hash_size: int,
     hash_func: Callable[[str, int, Unpack[Ts]], ImageHash],
-    increment_func: Optional[Callable] = None,
     *args: Unpack[Ts],
+    increment_func: Optional[Callable] = None,
 ) -> FileHashes:
     hashes: FileHashes = {}
     for file_path in image_paths:
