@@ -311,9 +311,10 @@ class Window(QMainWindow):
                 self.progressBar.reset()
                 return
 
-        for hashName, fileNames in duplicates.items():
-            imageFrame = QGroupBox(hashName)
+        for baseImage, fileNames in duplicates.items():
+            imageFrame = QGroupBox(baseImage)
             imageFrameLayout = QHBoxLayout()
+            fileNames.append(baseImage)
 
             for f in fileNames:
                 divisor = len(fileNames) + 1
