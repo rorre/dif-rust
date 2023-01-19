@@ -358,7 +358,7 @@ class Window(QMainWindow):
 
         validator = QDoubleValidator(0.0, 1.0, 2)
         validator.setNotation(QDoubleValidator.StandardNotation)
-        self.thresholdWidget = QLineEdit("0.8")
+        self.thresholdWidget = QLineEdit("0.95")
         self.thresholdWidget.setValidator(validator)
 
         self.sensitivityLayout = QHBoxLayout()
