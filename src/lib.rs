@@ -42,14 +42,16 @@ impl ImageHash {
     }
 }
 
-// Hashes an image
+// Hashes an image using average hash
 #[pyfunction]
-fn hash_image(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
+fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     let img = match image::open(fpath) {
         Ok(im) => im,
         Err(_e) => return Err(PyValueError::new_err("Cannot open image.")),
     };
-    let resized = img.resize_exact(hash_size, hash_size, image::imageops::FilterType::Nearest);
+    let resized =
+        img.grayscale()
+            .resize_exact(hash_size, hash_size, image::imageops::FilterType::Nearest);
 
     let mut pixels = vec![vec![0; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
 
@@ -86,10 +88,54 @@ fn hash_image(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     });
 }
 
+// Hashes an image using difference hash
+#[pyfunction]
+fn dhash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
+    let img = match image::open(fpath) {
+        Ok(im) => im,
+        Err(_e) => return Err(PyValueError::new_err("Cannot open image.")),
+    };
+    let resized = img.grayscale().resize_exact(
+        hash_size + 1,
+        hash_size + 1,
+        image::imageops::FilterType::Nearest,
+    );
+
+    let mut bool_result = vec![false; hash_size.pow(2).try_into().unwrap()];
+    let mut result: Vec<u8> = vec![0; hash_size.try_into().unwrap()];
+    let mut y = 0;
+    while y < hash_size {
+        let mut x = 0;
+        while x < hash_size {
+            let c = (y * 8 + x) as usize;
+            let left_pixel = resized.get_pixel(x, y).to_luma().0[0];
+            let right_pixel = resized.get_pixel(x + 1, y).to_luma().0[0];
+
+            let cmp = left_pixel > right_pixel;
+            bool_result[c] = cmp;
+            if cmp {
+                result[c / 8] |= 1 << (c % 8);
+            } else {
+                result[c / 8] |= 0 << (c % 8);
+            }
+
+            x += 1;
+        }
+        y += 1;
+    }
+
+    return Ok(ImageHash {
+        bool_values: bool_result,
+        values: result,
+        hash_size: hash_size as usize,
+    });
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn dif(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ImageHash>()?;
-    m.add_function(wrap_pyfunction!(hash_image, m)?)?;
+    m.add_function(wrap_pyfunction!(ahash, m)?)?;
+    m.add_function(wrap_pyfunction!(dhash, m)?)?;
     Ok(())
 }
