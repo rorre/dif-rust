@@ -126,6 +126,8 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
             total_sum += sum;
         }
     }
+    // Exclude first term
+    total_sum -= dct_arr[0][0];
 
     let hashpow = hash_size.pow(2);
     let avg = total_sum / hashpow as f64;
