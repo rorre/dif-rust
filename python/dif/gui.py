@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import (
     QWidget,
     QComboBox,
 )
-from dif import ahash, dhash
+from dif import ahash, dhash, phash
 
 from dif.finder import FileDuplicates, find_duplicates, get_all_images, get_hashes
 
@@ -67,11 +67,15 @@ class DuplicateWorker(QThread):
         imagePaths = get_all_images(self._folder)
         self.totalImages.emit(len(imagePaths))
 
+        args = []
         match self._method:
             case "aHash":
                 method = ahash
             case "dHash":
                 method = dhash
+            case "pHash":
+                method = phash
+                args = [4]
             case _:
                 raise Exception("Unexpected method")
 
@@ -79,6 +83,7 @@ class DuplicateWorker(QThread):
             imagePaths,
             self._hashSize,
             method,
+            *args,
             increment_func=self._updateProgress,
         )
         self._progress = 0
@@ -345,7 +350,7 @@ class Window(QMainWindow):
         thresholdLabel = QLabel("Threshold:")
 
         self.methodDropdown = QComboBox()
-        self.methodDropdown.addItems(["aHash", "dHash"])
+        self.methodDropdown.addItems(["aHash", "dHash", "pHash"])
 
         self.hashSizeDropdown = QComboBox()
         self.hashSizeDropdown.addItems(["8", "16", "32", "64"])
