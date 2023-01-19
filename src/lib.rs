@@ -111,7 +111,7 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
     for i in 0..hash_size {
         for j in 0..hash_size {
             let N = img_size.pow(2) as f64;
-            let k = (i + j * img_size) as f64;
+            let k = (i * img_size + j) as f64;
             let mut sum = 0.0f64;
 
             for y in 0..img_size {
