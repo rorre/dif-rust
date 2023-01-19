@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use image::{GenericImageView, Pixel};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
@@ -88,6 +90,67 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     });
 }
 
+// Hashes an image using perceptual hash
+#[pyfunction]
+fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageHash> {
+    let img = match image::open(fpath) {
+        Ok(im) => im,
+        Err(_e) => return Err(PyValueError::new_err("Cannot open image.")),
+    };
+
+    let img_size = hash_size * highfreq_factor;
+    let resized =
+        img.grayscale()
+            .resize_exact(img_size, img_size, image::imageops::FilterType::Nearest);
+
+    let mut dct_arr =
+        vec![vec![0.0f64; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
+
+    let mut total_sum = 0.0f64;
+    for i in 0..hash_size {
+        for j in 0..hash_size {
+            let N = img_size.pow(2) as f64;
+            let k = (i + j * img_size) as f64;
+            let mut sum = 0.0f64;
+
+            for y in 0..img_size {
+                for x in 0..img_size {
+                    let value = resized.get_pixel(x, y).to_luma().0[0] as f64;
+                    let n = y * img_size + x;
+                    sum += value * (PI / N * (n as f64 + 0.5) * k).cos();
+                }
+            }
+
+            dct_arr[i as usize][j as usize] = sum;
+            total_sum += sum;
+        }
+    }
+
+    let avg = total_sum / (hash_size * hash_size) as f64;
+    let mut bool_result = vec![false; hash_size.pow(2).try_into().unwrap()];
+    let mut result: Vec<u8> = vec![0; hash_size.try_into().unwrap()];
+    let mut c = 0;
+    for i in 0..hash_size {
+        for j in 0..hash_size {
+            let cmp = dct_arr[i as usize][j as usize] > avg;
+            bool_result[c] = cmp;
+            if cmp {
+                result[c / 8] |= 1 << (c % 8);
+            } else {
+                result[c / 8] |= 0 << (c % 8);
+            }
+
+            c += 1;
+        }
+    }
+
+    return Ok(ImageHash {
+        bool_values: bool_result,
+        values: result,
+        hash_size: hash_size as usize,
+    });
+}
+
 // Hashes an image using difference hash
 #[pyfunction]
 fn dhash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
@@ -137,5 +200,6 @@ fn dif(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ImageHash>()?;
     m.add_function(wrap_pyfunction!(ahash, m)?)?;
     m.add_function(wrap_pyfunction!(dhash, m)?)?;
+    m.add_function(wrap_pyfunction!(phash, m)?)?;
     Ok(())
 }
