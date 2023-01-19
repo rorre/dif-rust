@@ -81,5 +81,5 @@ def find_duplicates(
         if increment_func:
             increment_func()
 
-    final_hashes = {k: v for k, v in dups.items() if len(v) > 1}
+    final_hashes = {k: v for k, v in dups.items() if len(v) >= 1}
     return final_hashes

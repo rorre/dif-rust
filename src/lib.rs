@@ -53,7 +53,7 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     };
     let resized =
         img.grayscale()
-            .resize_exact(hash_size, hash_size, image::imageops::FilterType::Nearest);
+            .resize_exact(hash_size, hash_size, image::imageops::FilterType::Lanczos3);
 
     let mut pixels = vec![vec![0; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
 
@@ -62,17 +62,17 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         let (x, y, rgb) = pixel;
         let px = rgb.to_luma();
         pixels[y as usize][x as usize] = px.0[0];
-        sum += u32::from(px.0[0]);
+        sum += px.0[0] as u32;
     }
 
     let hashpow = hash_size.pow(2);
-    let avg = sum / hashpow;
+    let avg = f64::from(sum) / f64::from(hashpow);
     let mut bool_result = vec![false; hashpow.try_into().unwrap()];
     let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
     let mut c = 0;
     for row_pxs in pixels {
         for px in row_pxs {
-            let cmp = u32::from(px) > avg;
+            let cmp = f64::from(px) > avg;
             bool_result[c] = cmp;
             if cmp {
                 result[c / 8] |= 1 << (c % 8);
@@ -102,14 +102,15 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
     let img_size = hash_size * highfreq_factor;
     let resized =
         img.grayscale()
-            .resize_exact(img_size, img_size, image::imageops::FilterType::Nearest);
+            .resize_exact(img_size, img_size, image::imageops::FilterType::Lanczos3);
 
     let mut dct_arr =
         vec![vec![0.0f64; (hash_size + 1).try_into().unwrap()]; hash_size.try_into().unwrap()];
 
     let mut total_sum = 0.0f64;
     for i in 0..hash_size {
-        for j in 0..hash_size + 1 {
+        // Exclude first term of every y axis
+        for j in 1..hash_size + 1 {
             let N = img_size.pow(2) as f64;
             let k = (i * img_size + j) as f64;
             let mut sum = 0.0f64;
@@ -122,11 +123,8 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
                 }
             }
 
-            dct_arr[i as usize][j as usize] = sum;
-            // Exclude first term of every y axis
-            if j != 0 {
-                total_sum += sum;
-            }
+            dct_arr[i as usize][(j - 1) as usize] = sum;
+            total_sum += sum;
         }
     }
 
@@ -166,7 +164,7 @@ fn dhash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     let resized = img.grayscale().resize_exact(
         hash_size + 1,
         hash_size + 1,
-        image::imageops::FilterType::Nearest,
+        image::imageops::FilterType::Lanczos3,
     );
 
     let hashpow = hash_size.pow(2);
