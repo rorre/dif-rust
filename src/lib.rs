@@ -105,11 +105,11 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
             .resize_exact(img_size, img_size, image::imageops::FilterType::Nearest);
 
     let mut dct_arr =
-        vec![vec![0.0f64; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
+        vec![vec![0.0f64; (hash_size + 1).try_into().unwrap()]; hash_size.try_into().unwrap()];
 
     let mut total_sum = 0.0f64;
     for i in 0..hash_size {
-        for j in 0..hash_size {
+        for j in 0..hash_size + 1 {
             let N = img_size.pow(2) as f64;
             let k = (i * img_size + j) as f64;
             let mut sum = 0.0f64;
@@ -123,11 +123,12 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
             }
 
             dct_arr[i as usize][j as usize] = sum;
-            total_sum += sum;
+            // Exclude first term of every y axis
+            if j != 0 {
+                total_sum += sum;
+            }
         }
     }
-    // Exclude first term
-    total_sum -= dct_arr[0][0];
 
     let hashpow = hash_size.pow(2);
     let avg = total_sum / hashpow as f64;
