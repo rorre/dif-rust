@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import (
     QWidget,
     QComboBox,
 )
+from dif import ahash, dhash
 
 from dif.finder import FileDuplicates, find_duplicates, get_all_images, get_hashes
 
@@ -42,9 +43,18 @@ class DuplicateWorker(QThread):
     totalImages = pyqtSignal(int)
     duplicateImages = pyqtSignal(dict)
 
-    def __init__(self, folder: str, hashSize: int, threshold: float, *args, **kwargs):
+    def __init__(
+        self,
+        folder: str,
+        hashSize: int,
+        threshold: float,
+        method: str,
+        *args,
+        **kwargs,
+    ):
         self._folder = folder
         self._hashSize = hashSize
+        self._method = method
         self._threshold = threshold
         super().__init__(*args, **kwargs)
 
@@ -57,9 +67,18 @@ class DuplicateWorker(QThread):
         imagePaths = get_all_images(self._folder)
         self.totalImages.emit(len(imagePaths))
 
+        match self._method:
+            case "aHash":
+                method = ahash
+            case "dHash":
+                method = dhash
+            case _:
+                raise Exception("Unexpected method")
+
         hashes = get_hashes(
             imagePaths,
             self._hashSize,
+            method,
             increment_func=self._updateProgress,
         )
         self._progress = 0
@@ -231,8 +250,9 @@ class Window(QMainWindow):
 
         threshold = float(self.thresholdWidget.text())
         hashSize = int(self.hashSizeDropdown.currentText())
+        method = self.methodDropdown.currentText()
 
-        self.runningThread = DuplicateWorker(targetFolder, hashSize, threshold)
+        self.runningThread = DuplicateWorker(targetFolder, hashSize, threshold, method)
         self.runningThread.totalImages.connect(self.progressBar.setMaximum)
         self.runningThread.progress.connect(self.progressBar.setValue)
         self.runningThread.duplicateImages.connect(self.showDuplicateImages)
@@ -320,8 +340,12 @@ class Window(QMainWindow):
             self.imagesLayout.addWidget(imageFrame)
 
     def createSensitivityRow(self):
+        methodLabel = QLabel("Method:")
         hashSizeLabel = QLabel("Hash size:")
         thresholdLabel = QLabel("Threshold:")
+
+        self.methodDropdown = QComboBox()
+        self.methodDropdown.addItems(["aHash", "dHash"])
 
         self.hashSizeDropdown = QComboBox()
         self.hashSizeDropdown.addItems(["8", "16", "32", "64"])
@@ -332,6 +356,8 @@ class Window(QMainWindow):
         self.thresholdWidget.setValidator(validator)
 
         self.sensitivityLayout = QHBoxLayout()
+        self.sensitivityLayout.addWidget(methodLabel)
+        self.sensitivityLayout.addWidget(self.methodDropdown)
         self.sensitivityLayout.addWidget(hashSizeLabel)
         self.sensitivityLayout.addWidget(self.hashSizeDropdown)
         self.sensitivityLayout.addWidget(thresholdLabel)
