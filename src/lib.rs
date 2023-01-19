@@ -66,8 +66,9 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     }
 
     let avg = sum / (u32::pow(hash_size, 2));
-    let mut bool_result = vec![false; hash_size.pow(2).try_into().unwrap()];
-    let mut result: Vec<u8> = vec![0; hash_size.try_into().unwrap()];
+    let hashpow = hash_size.pow(2);
+    let mut bool_result = vec![false; hashpow.try_into().unwrap()];
+    let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
     let mut c = 0;
     for row_pxs in pixels {
         for px in row_pxs {
@@ -127,8 +128,9 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
     }
 
     let avg = total_sum / (hash_size * hash_size) as f64;
-    let mut bool_result = vec![false; hash_size.pow(2).try_into().unwrap()];
-    let mut result: Vec<u8> = vec![0; hash_size.try_into().unwrap()];
+    let hashpow = hash_size.pow(2);
+    let mut bool_result = vec![false; hashpow.try_into().unwrap()];
+    let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
     let mut c = 0;
     for i in 0..hash_size {
         for j in 0..hash_size {
@@ -164,8 +166,9 @@ fn dhash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         image::imageops::FilterType::Nearest,
     );
 
-    let mut bool_result = vec![false; hash_size.pow(2).try_into().unwrap()];
-    let mut result: Vec<u8> = vec![0; hash_size.try_into().unwrap()];
+    let hashpow = hash_size.pow(2);
+    let mut bool_result = vec![false; hashpow.try_into().unwrap()];
+    let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
     let mut y = 0;
     while y < hash_size {
         let mut x = 0;
