@@ -1,14 +1,15 @@
 from collections import defaultdict
 import mimetypes
 import os
-import pathlib
-from typing import Annotated, Callable, Dict, List, Optional, Union
+from typing import Annotated, Callable, Dict, List, Optional
+from typing_extensions import TypeVarTuple, Unpack
 
-from dif import hash_image, ImageHash
+from dif import ImageHash
 
 Path = Annotated[str, "Path to file"]
 FileHashes = Dict[Path, Optional[ImageHash]]
 FileDuplicates = Dict[Path, List[Path]]
+Ts = TypeVarTuple("Ts")
 
 
 def get_all_images(folder: Path) -> List[str]:
@@ -31,12 +32,14 @@ def get_all_images(folder: Path) -> List[str]:
 def get_hashes(
     image_paths: List[Path],
     hash_size: int,
+    hash_func: Callable[[str, int, Unpack[Ts]], ImageHash],
     increment_func: Optional[Callable] = None,
+    *args: Unpack[Ts],
 ) -> FileHashes:
     hashes: FileHashes = {}
     for file_path in image_paths:
         try:
-            hashes[file_path] = hash_image(file_path, hash_size)
+            hashes[file_path] = hash_func(file_path, hash_size, *args)
         except:
             hashes[file_path] = None
 
