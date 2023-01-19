@@ -65,8 +65,8 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         sum += u32::from(px.0[0]);
     }
 
-    let avg = sum / (u32::pow(hash_size, 2));
     let hashpow = hash_size.pow(2);
+    let avg = sum / hashpow;
     let mut bool_result = vec![false; hashpow.try_into().unwrap()];
     let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
     let mut c = 0;
@@ -127,8 +127,8 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
         }
     }
 
-    let avg = total_sum / (hash_size * hash_size) as f64;
     let hashpow = hash_size.pow(2);
+    let avg = total_sum / hashpow as f64;
     let mut bool_result = vec![false; hashpow.try_into().unwrap()];
     let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
     let mut c = 0;
