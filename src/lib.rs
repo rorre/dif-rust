@@ -39,7 +39,8 @@ impl ImageHash {
             };
             i += 1;
         }
-        return Ok(count);
+
+        Ok(count)
     }
 }
 
@@ -61,8 +62,7 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
     let mut bool_result = vec![false; hashpow as usize];
     let mut result: Vec<u8> = vec![0; (hashpow / 8) as usize];
 
-    let mut c = 0;
-    for px in resized.pixels() {
+    for (c, px) in resized.pixels().enumerate() {
         let cmp = px.0[0] as f64 > avg;
         bool_result[c] = cmp;
         if cmp {
@@ -70,15 +70,13 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         } else {
             result[c / 8] |= 0 << (c % 8);
         }
-
-        c += 1;
     }
 
-    return Ok(ImageHash {
+    Ok(ImageHash {
         bool_values: bool_result,
         values: result,
         hash_size: hash_size as usize,
-    });
+    })
 }
 
 // Hashes an image using perceptual hash
@@ -100,6 +98,7 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
     for i in 0..hash_size {
         // Exclude first term of every y axis
         for j in 1..hash_size + 1 {
+            #[allow(non_snake_case)]
             let N = img_size.pow(2) as f64;
             let k = (i * img_size + j) as f64;
             let mut sum = 0.0f64;
@@ -135,11 +134,11 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
         }
     }
 
-    return Ok(ImageHash {
+    Ok(ImageHash {
         bool_values: bool_result,
         values: result,
         hash_size: hash_size as usize,
-    });
+    })
 }
 
 // Hashes an image using difference hash
@@ -182,11 +181,11 @@ fn dhash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         y += 1;
     }
 
-    return Ok(ImageHash {
+    Ok(ImageHash {
         bool_values: bool_result,
         values: result,
         hash_size: hash_size as usize,
-    });
+    })
 }
 
 /// A Python module implemented in Rust.
