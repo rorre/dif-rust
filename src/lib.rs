@@ -1,6 +1,5 @@
 use std::f64::consts::PI;
 
-use image::{GenericImageView, Pixel};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
 #[pyclass]
@@ -51,37 +50,28 @@ fn ahash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         Ok(im) => im,
         Err(_e) => return Err(PyValueError::new_err("Cannot open image.")),
     };
-    let resized =
-        img.grayscale()
-            .resize_exact(hash_size, hash_size, image::imageops::FilterType::Lanczos3);
-
-    let mut pixels = vec![vec![0; hash_size.try_into().unwrap()]; hash_size.try_into().unwrap()];
-
-    let mut sum: u32 = 0;
-    for pixel in resized.pixels() {
-        let (x, y, rgb) = pixel;
-        let px = rgb.to_luma();
-        pixels[y as usize][x as usize] = px.0[0];
-        sum += px.0[0] as u32;
-    }
+    let resized = img
+        .resize_exact(hash_size, hash_size, image::imageops::FilterType::Lanczos3)
+        .to_luma8();
 
     let hashpow = hash_size.pow(2);
-    let avg = f64::from(sum) / f64::from(hashpow);
-    let mut bool_result = vec![false; hashpow.try_into().unwrap()];
-    let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
-    let mut c = 0;
-    for row_pxs in pixels {
-        for px in row_pxs {
-            let cmp = f64::from(px) > avg;
-            bool_result[c] = cmp;
-            if cmp {
-                result[c / 8] |= 1 << (c % 8);
-            } else {
-                result[c / 8] |= 0 << (c % 8);
-            }
+    let avg: f64 =
+        resized.pixels().map(|px| px.0[0] as f64).sum::<f64>() / resized.pixels().len() as f64;
 
-            c += 1;
+    let mut bool_result = vec![false; hashpow as usize];
+    let mut result: Vec<u8> = vec![0; (hashpow / 8) as usize];
+
+    let mut c = 0;
+    for px in resized.pixels() {
+        let cmp = px.0[0] as f64 > avg;
+        bool_result[c] = cmp;
+        if cmp {
+            result[c / 8] |= 1 << (c % 8);
+        } else {
+            result[c / 8] |= 0 << (c % 8);
         }
+
+        c += 1;
     }
 
     return Ok(ImageHash {
@@ -100,14 +90,13 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
     };
 
     let img_size = hash_size * highfreq_factor;
-    let resized =
-        img.grayscale()
-            .resize_exact(img_size, img_size, image::imageops::FilterType::Lanczos3);
+    let resized = img
+        .resize_exact(img_size, img_size, image::imageops::FilterType::Lanczos3)
+        .to_luma8();
 
     let mut dct_arr =
         vec![vec![0.0f64; (hash_size + 1).try_into().unwrap()]; hash_size.try_into().unwrap()];
 
-    let mut total_sum = 0.0f64;
     for i in 0..hash_size {
         // Exclude first term of every y axis
         for j in 1..hash_size + 1 {
@@ -117,24 +106,25 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
 
             for y in 0..img_size {
                 for x in 0..img_size {
-                    let value = resized.get_pixel(x, y).to_luma().0[0] as f64;
+                    let value = resized.get_pixel(x, y).0[0] as f64;
                     let n = y * img_size + x;
                     sum += value * (PI / N * (n as f64 + 0.5) * k).cos();
                 }
             }
 
             dct_arr[i as usize][(j - 1) as usize] = sum;
-            total_sum += sum;
         }
     }
 
     let hashpow = hash_size.pow(2);
-    let avg = total_sum / hashpow as f64;
-    let mut bool_result = vec![false; hashpow.try_into().unwrap()];
-    let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
-    let mut c = 0;
+    let avg = dct_arr.iter().flat_map(|row| row.iter()).sum::<f64>() / hashpow as f64;
+
+    let mut bool_result = vec![false; hashpow as usize];
+    let mut result: Vec<u8> = vec![0; (hashpow / 8) as usize];
+
     for i in 0..hash_size {
         for j in 0..hash_size {
+            let c = (i * hash_size + j) as usize;
             let cmp = dct_arr[i as usize][j as usize] > avg;
             bool_result[c] = cmp;
             if cmp {
@@ -142,8 +132,6 @@ fn phash(fpath: String, hash_size: u32, highfreq_factor: u32) -> PyResult<ImageH
             } else {
                 result[c / 8] |= 0 << (c % 8);
             }
-
-            c += 1;
         }
     }
 
@@ -161,22 +149,25 @@ fn dhash(fpath: String, hash_size: u32) -> PyResult<ImageHash> {
         Ok(im) => im,
         Err(_e) => return Err(PyValueError::new_err("Cannot open image.")),
     };
-    let resized = img.grayscale().resize_exact(
-        hash_size + 1,
-        hash_size + 1,
-        image::imageops::FilterType::Lanczos3,
-    );
+    let resized = img
+        .resize_exact(
+            hash_size + 1,
+            hash_size + 1,
+            image::imageops::FilterType::Lanczos3,
+        )
+        .to_luma8();
 
     let hashpow = hash_size.pow(2);
-    let mut bool_result = vec![false; hashpow.try_into().unwrap()];
-    let mut result: Vec<u8> = vec![0; (hashpow / 8).try_into().unwrap()];
+    let mut bool_result = vec![false; hashpow as usize];
+    let mut result: Vec<u8> = vec![0; (hashpow / 8) as usize];
+
     let mut y = 0;
     while y < hash_size {
         let mut x = 0;
         while x < hash_size {
             let c = (y * 8 + x) as usize;
-            let left_pixel = resized.get_pixel(x, y).to_luma().0[0];
-            let right_pixel = resized.get_pixel(x + 1, y).to_luma().0[0];
+            let left_pixel = resized.get_pixel(x, y).0[0];
+            let right_pixel = resized.get_pixel(x + 1, y).0[0];
 
             let cmp = left_pixel > right_pixel;
             bool_result[c] = cmp;
