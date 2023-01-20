@@ -1,6 +1,6 @@
 class ImageHash:
     bool_values: list[bool]
-    valueus: list[int]
+    values: list[int]
     hash_size: int
 
     def distance(self, other: ImageHash) -> int: ...

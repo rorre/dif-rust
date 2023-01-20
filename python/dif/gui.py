@@ -1,7 +1,7 @@
 import functools
 import os
 from pathlib import Path
-from typing import Set
+from typing import Set, cast
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QDoubleValidator
@@ -67,25 +67,32 @@ class DuplicateWorker(QThread):
         imagePaths = get_all_images(self._folder)
         self.totalImages.emit(len(imagePaths))
 
-        args = []
         match self._method:
             case "aHash":
-                method = ahash
+                hashes = get_hashes(
+                    imagePaths,
+                    self._hashSize,
+                    ahash,
+                    increment_func=self._updateProgress,
+                )
             case "dHash":
-                method = dhash
+                hashes = get_hashes(
+                    imagePaths,
+                    self._hashSize,
+                    dhash,
+                    increment_func=self._updateProgress,
+                )
             case "pHash":
-                method = phash
-                args = [4]
+                hashes = get_hashes(
+                    imagePaths,
+                    self._hashSize,
+                    phash,
+                    4,
+                    increment_func=self._updateProgress,
+                )
             case _:
                 raise Exception("Unexpected method")
 
-        hashes = get_hashes(
-            imagePaths,
-            self._hashSize,
-            method,
-            *args,
-            increment_func=self._updateProgress,
-        )
         self._progress = 0
         self.progress.emit(0)
 
@@ -264,7 +271,7 @@ class Window(QMainWindow):
         self.runningThread.start()
 
     def _updateSelection(self, _):
-        checkBox: QImageMarker = self.sender()
+        checkBox: QImageMarker = cast(QImageMarker, self.sender())
         if checkBox.isChecked():
             self.markedData.add(checkBox.imagePath)
         else:
@@ -273,7 +280,7 @@ class Window(QMainWindow):
     def _cleanupDuplicateArea(self):
         layout = self.imagesLayout
         for i in reversed(range(layout.count())):
-            layout.itemAt(i).widget().setParent(None)
+            layout.itemAt(i).widget().deleteLater()
 
     def showDuplicateImages(self, duplicates: FileDuplicates):
         """Show all result from duplicate image worker.
